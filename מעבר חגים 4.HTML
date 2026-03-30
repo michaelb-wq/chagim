@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>טופס תקציר דייר - עריכה והפקה</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Heebo', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        #pdf-container {
+            display: none; 
+        }
+
+        /* עיצוב המיועד נטו ל-PDF - מותאם למנוע ההדפסה של הדפדפן */
+        .pdf-view {
+            width: 100%;
+            font-size: 12pt;
+            color: #000;
+            background: #fff;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+        .pdf-header {
+            text-align: center;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+        }
+        .pdf-super-title { font-size: 24pt; font-weight: bold; color: #1e3a8a; margin: 0; line-height: 1.1; }
+        .pdf-subtitle { font-size: 11pt; color: #4b5563; margin-top: 5px;}
+        
+        .pdf-section {
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+        .pdf-section-title {
+            font-size: 14pt;
+            font-weight: bold;
+            background-color: #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-right: 4px solid #2563eb;
+        }
+        .pdf-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;}
+        .pdf-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;}
+        
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11pt; }
+        .pdf-table th, .pdf-table td { border: 1px solid #9ca3af; padding: 6px 8px; text-align: right; }
+        .pdf-table th { background-color: #f3f4f6; font-weight: bold; }
+        
+        .pdf-list { margin: 0; padding-right: 20px; }
+        .pdf-list li { margin-bottom: 4px; }
+        
+        .pdf-label { font-weight: bold; color: #374151; }
+        .pdf-text { margin-bottom: 8px; }
+        
+        .dos-donts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .do-box { border: 1px solid #10b981; border-radius: 4px; padding: 10px; }
+        .do-title { color: #047857; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #10b981;}
+        .dont-box { border: 1px solid #ef4444; border-radius: 4px; padding: 10px; }
+        .dont-title { color: #b91c1c; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #ef4444;}
+
+        /* --- הגדרות הדפסה חכמות --- */
+        @media print {
+            /* מסתיר את כל ממשק המילוי */
+            body > .max-w-5xl {
+                display: none !important;
+            }
+            body {
+                background-color: #fff;
+            }
+            /* מציג רק את מיכל ה-PDF */
+            #pdf-container {
+                display: block !important;
+            }
+            /* מכריח את הדפדפן להדפיס צבעי רקע (למשל של הכותרות) */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* הגדרות עמוד A4 מושלמות */
+            @page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased">
+
+    <!-- ממשק מילוי הטופס -->
+    <div class="max-w-5xl mx-auto my-8 bg-white p-6 md:p-10 rounded-xl shadow-lg border border-gray-200">
+        
+        <div class="border-b-2 border-blue-600 pb-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-900">טופס תקציר דייר - מידע לצוות קולט/חגים</h1>
+                <p class="text-gray-500 mt-1">הנתונים שיוקלדו <strong class="text-green-600">נשמרים אוטומטית</strong>. שדות ריקים יוסתרו בהדפסה.</p>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                <div class="text-sm bg-blue-50 text-blue-800 px-3 py-1 rounded border border-blue-200 flex items-center gap-2">
+                    <i class="fas fa-save"></i> שמירה אוטומטית פעילה
+                </div>
+                <div id="save_indicator" class="text-sm bg-green-100 text-green-800 px-3 py-1 rounded border border-green-300 flex items-center gap-2 transition-opacity duration-500 opacity-0 pointer-events-none">
+                    <i class="fas fa-check-circle"></i> נשמר בהצלחה!
+                </div>
+            </div>
+        </div>
+
+        <form id="tenantForm" class="space-y-8">
+            
+            <!-- 1. תעודת זהות ורקע רפואי -->
+            <section class="bg-blue-50/50 p-5 rounded-lg border border-blue-100">
+                <h2 class="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2"><i class="fas fa-id-card"></i> 1. תעודת זהות ורקע רפואי</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">שם הדייר <span class="text-red-500">*</span></label>
+                        <input type="text" id="f_name" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="שם מלא">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">תעודת זהות</label>
+                        <input type="text" id="f_id" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">תאריך לידה</label>
+                        <input type="date" id="f_dob" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">טלפון של הדייר</label>
+                        <input type="tel" id="f_tenant_phone" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">קופת חולים</label>
+                        <input type="text" id="f_hmo" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">איש קשר מרכזי (משפחה)</label>
+                        <input type="text" id="f_contact_name" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="שם וקרבה">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">טלפון איש קשר</label>
+                        <input type="tel" id="f_contact_phone" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+                <div class="mt-2 bg-red-50 p-3 rounded border border-red-200">
+                    <label class="block text-sm font-bold text-red-700 mb-1"><i class="fas fa-notes-medical"></i> רגישויות ואלרגיות</label>
+                    <input type="text" id="f_allergies" class="w-full border border-red-300 bg-white rounded p-2 focus:ring-2 focus:ring-red-500 outline-none" placeholder="השאר ריק אם אין...">
+                </div>
+            </section>
+
+            <!-- 2. שגרת תרופות -->
+            <section class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-pills text-teal-600"></i> 2. שגרת תרופות</h2>
+                
+                <div class="mb-4 bg-teal-50 p-3 rounded border border-teal-100 space-y-2">
+                    <p class="text-sm font-bold text-teal-800 mb-2">בחר את סטטוס התרופות של הדייר:</p>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="meds_status" value="none" onclick="toggleMedsTable()" class="w-4 h-4 text-teal-600">
+                        <span class="text-sm">הדייר <strong>אינו</strong> נוטל תרופות כלל</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="meds_status" value="independent" onclick="toggleMedsTable()" class="w-4 h-4 text-teal-600">
+                        <span class="text-sm">לוקח באופן עצמאי - הצוות רק צריך <strong>לוודא</strong> איתו שלקח</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="meds_status" value="assisted" onclick="toggleMedsTable()" class="w-4 h-4 text-teal-600" checked>
+                        <span class="text-sm">באחריות הצוות <strong>לחלק ולוודא נטילה</strong> (יש לפרט בטבלה למטה)</span>
+                    </label>
+                </div>
+
+                <div id="meds_table_container">
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">דגשים מיוחדים בלקיחת התרופות:</label>
+                        <input type="text" id="f_meds_notes" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-teal-500 outline-none" placeholder="לדוגמה: משאף לפני השינה, לקחת אחרי אוכל...">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border p-2 w-1/3">שם התרופה</th>
+                                    <th class="border p-2 w-1/4">מינון</th>
+                                    <th class="border p-2 text-center w-16">בוקר</th>
+                                    <th class="border p-2 text-center w-16">צהריים</th>
+                                    <th class="border p-2 text-center w-16">ערב</th>
+                                    <th class="border p-2 text-center w-12">הסר</th>
+                                </tr>
+                            </thead>
+                            <tbody id="meds_table_body">
+                                <!-- שורות יתווספו כאן דינמית -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" onclick="addTableRow('meds_table_body', 'meds')" class="mt-3 text-sm text-teal-600 hover:text-teal-800 font-bold flex items-center gap-1 bg-teal-50 px-3 py-1 rounded">
+                        <i class="fas fa-plus"></i> הוסף תרופה לטבלה
+                    </button>
+                </div>
+            </section>
+
+            <!-- 3. ניהול סיכונים -->
+            <section class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-exclamation-triangle text-orange-500"></i> 3. ניהול סיכונים (מוקד לפקוח עין)</h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-orange-50">
+                                <th class="border border-orange-200 p-2 w-1/4">מהות הסיכון</th>
+                                <th class="border border-orange-200 p-2 w-1/3">סימני אזהרה (איך זה נראה)</th>
+                                <th class="border border-orange-200 p-2 w-1/3">התערבות הצוות (מה עושים)</th>
+                                <th class="border border-orange-200 p-2 text-center w-12">הסר</th>
+                            </tr>
+                        </thead>
+                        <tbody id="risks_table_body">
+                            <!-- שורות יתווספו כאן -->
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" onclick="addTableRow('risks_table_body', 'risks')" class="mt-3 text-sm text-orange-600 hover:text-orange-800 font-bold flex items-center gap-1 bg-orange-50 px-3 py-1 rounded">
+                    <i class="fas fa-plus"></i> הוסף סיכון מעקב
+                </button>
+            </section>
+
+            <!-- 4. שגרת יום ותפקוד פיזי -->
+            <section class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-sun text-yellow-500"></i> 4. שגרת יום ותפקוד פיזי</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">דגשים חשובים בסדר יום (חגים ושבתות):</label>
+                        <textarea id="f_routine" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="מתי קם, זקוק למנוחת צהריים, נטייה לעייפות..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">דגשים חשובים בהיגיינה אישית:</label>
+                        <textarea id="f_hygiene" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="רמת עצמאות במקלחת, האם צריך תזכורות להחלפת בגדים..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">דגשים חשובים בהתניידות ומרחב:</label>
+                        <textarea id="f_mobility" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="האם נדרש אישור ליציאה, ליווי, התמצאות במרחב..."></textarea>
+                    </div>
+                    <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
+                        <label class="block text-sm font-bold text-yellow-800 mb-1">התנהגויות "חריגות" שהן שגרתיות ונורמליות עבורו:</label>
+                        <textarea id="f_normal_unusual" rows="2" class="w-full border border-yellow-300 rounded p-2 focus:ring-2 focus:ring-yellow-500 outline-none bg-white" placeholder="דברים שאולי ייראו מוזר לצוות חדש אבל אצל הדייר הם לחלוטין שגרה ולא מצריכים דאגה..."></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. פרופיל רגשי-התנהגותי -->
+            <section class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-heart text-red-400"></i> 5. פרופיל רגשי וגישה טיפולית</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 border-b pb-1">נקודות רגישות ומשמחות (מה מעליב, מה משמח, איזה יחס נדרש)</label>
+                        <ul id="triggers_list" class="space-y-2"></ul>
+                        <button type="button" onclick="addListItem('triggers_list')" class="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <i class="fas fa-plus"></i> הוסף נקודה
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2 border-b pb-1">סימנים מקדימים למצוקה או קושי</label>
+                        <ul id="behaviors_list" class="space-y-2"></ul>
+                        <button type="button" onclick="addListItem('behaviors_list')" class="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <i class="fas fa-plus"></i> הוסף סימן מזהה
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="pt-2 border-t mt-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">מה עוזר ומה עושים כאשר הדייר כועס/במצוקה?</label>
+                    <textarea id="f_emotional_needs" rows="2" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-red-300 outline-none" placeholder="הנחיות הרגעה: לדבר בגובה העיניים, לתת סולם לרדת מהעץ, להציע מנוחה..."></textarea>
+                </div>
+            </section>
+
+            <!-- 6. עשה ואל תעשה -->
+            <section class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-clipboard-list text-purple-600"></i> 6. "עשה ואל תעשה" - הנחיות זהב לצוות</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-green-50 p-4 rounded border border-green-200">
+                        <h3 class="font-bold text-green-800 mb-2 flex items-center gap-2"><i class="fas fa-check-circle"></i> עשה:</h3>
+                        <ul id="dos_list" class="space-y-2"></ul>
+                        <button type="button" onclick="addListItem('dos_list', 'green')" class="mt-2 text-sm text-green-700 hover:text-green-900 flex items-center gap-1 font-bold">
+                            <i class="fas fa-plus"></i> הוסף הנחיית 'עשה'
+                        </button>
+                    </div>
+                    
+                    <div class="bg-red-50 p-4 rounded border border-red-200">
+                        <h3 class="font-bold text-red-800 mb-2 flex items-center gap-2"><i class="fas fa-times-circle"></i> אל תעשה:</h3>
+                        <ul id="donts_list" class="space-y-2"></ul>
+                        <button type="button" onclick="addListItem('donts_list', 'red')" class="mt-2 text-sm text-red-700 hover:text-red-900 flex items-center gap-1 font-bold">
+                            <i class="fas fa-plus"></i> הוסף הנחיית 'אל תעשה'
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- כפתורי פעולה תחתונים -->
+            <div class="flex flex-col sm:flex-row justify-between items-center pt-6 gap-4 border-t">
+                <button type="button" onclick="clearForm()" class="text-red-600 hover:bg-red-50 border border-red-300 font-bold py-2 px-4 rounded transition duration-200 flex items-center gap-2">
+                    <i class="fas fa-trash-alt"></i> נקה טופס לטובת דייר חדש
+                </button>
+                
+                <button type="button" onclick="generatePDF()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 px-10 rounded-full shadow-lg transition duration-200 flex items-center gap-3">
+                    <i class="fas fa-print text-2xl"></i>
+                    הדפס / שמור כ-PDF
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- מבנה חבוי להפקת ה-PDF הנקי -->
+    <div id="pdf-container">
+        <div id="pdf-content" class="pdf-view" dir="rtl">
+            <!-- יוזרק לפה HTML נקי ע"י JS -->
+        </div>
+    </div>
+
+    <script>
+        // --- מנגנון שמירה מקומית (LocalStorage) ---
+
+        // פונקציה לאיסוף הנתונים ושמירתם בדפדפן
+        function saveToLocal() {
+            const data = {
+                f_name: document.getElementById('f_name').value,
+                f_id: document.getElementById('f_id').value,
+                f_dob: document.getElementById('f_dob').value,
+                f_tenant_phone: document.getElementById('f_tenant_phone').value,
+                f_hmo: document.getElementById('f_hmo').value,
+                f_contact_name: document.getElementById('f_contact_name').value,
+                f_contact_phone: document.getElementById('f_contact_phone').value,
+                f_allergies: document.getElementById('f_allergies').value,
+                
+                meds_status: document.querySelector('input[name="meds_status"]:checked').value,
+                f_meds_notes: document.getElementById('f_meds_notes').value,
+                
+                f_routine: document.getElementById('f_routine').value,
+                f_hygiene: document.getElementById('f_hygiene').value,
+                f_mobility: document.getElementById('f_mobility').value,
+                f_normal_unusual: document.getElementById('f_normal_unusual').value,
+                
+                f_emotional_needs: document.getElementById('f_emotional_needs').value,
+
+                meds: Array.from(document.querySelectorAll('#meds_table_body tr')).map(tr => ({
+                    name: tr.querySelector('.med-name').value,
+                    dose: tr.querySelector('.med-dose').value,
+                    morn: tr.querySelector('.med-morn').checked,
+                    noon: tr.querySelector('.med-noon').checked,
+                    eve: tr.querySelector('.med-eve').checked
+                })),
+                risks: Array.from(document.querySelectorAll('#risks_table_body tr')).map(tr => ({
+                    name: tr.querySelector('.risk-name').value,
+                    warn: tr.querySelector('.risk-warn').value,
+                    act: tr.querySelector('.risk-act').value
+                })),
+                triggers_list: Array.from(document.querySelectorAll('#triggers_list .list-val')).map(inp => inp.value),
+                behaviors_list: Array.from(document.querySelectorAll('#behaviors_list .list-val')).map(inp => inp.value),
+                dos_list: Array.from(document.querySelectorAll('#dos_list .list-val')).map(inp => inp.value),
+                donts_list: Array.from(document.querySelectorAll('#donts_list .list-val')).map(inp => inp.value)
+            };
+            localStorage.setItem('tenantFormData', JSON.stringify(data));
+            
+            // חיווי ויזואלי לשמירה
+            const indicator = document.getElementById('save_indicator');
+            if (indicator) {
+                indicator.classList.remove('opacity-0');
+                clearTimeout(window.saveTimeout);
+                window.saveTimeout = setTimeout(() => {
+                    indicator.classList.add('opacity-0');
+                }, 1200);
+            }
+        }
+
+        // פונקציה לטעינת הנתונים כשפותחים את הדף
+        function loadFromLocal() {
+            const savedData = localStorage.getItem('tenantFormData');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    
+                    // טעינת שדות רגילים
+                    document.getElementById('f_name').value = data.f_name || '';
+                    document.getElementById('f_id').value = data.f_id || '';
+                    document.getElementById('f_dob').value = data.f_dob || '';
+                    document.getElementById('f_tenant_phone').value = data.f_tenant_phone || '';
+                    document.getElementById('f_hmo').value = data.f_hmo || '';
+                    document.getElementById('f_contact_name').value = data.f_contact_name || '';
+                    document.getElementById('f_contact_phone').value = data.f_contact_phone || '';
+                    document.getElementById('f_allergies').value = data.f_allergies || '';
+                    document.getElementById('f_meds_notes').value = data.f_meds_notes || '';
+                    document.getElementById('f_routine').value = data.f_routine || '';
+                    document.getElementById('f_hygiene').value = data.f_hygiene || '';
+                    document.getElementById('f_mobility').value = data.f_mobility || '';
+                    document.getElementById('f_normal_unusual').value = data.f_normal_unusual || '';
+                    document.getElementById('f_emotional_needs').value = data.f_emotional_needs || '';
+
+                    // טעינת סטטוס תרופות (כפתורי רדיו)
+                    if(data.meds_status) {
+                        const radio = document.querySelector(`input[name="meds_status"][value="${data.meds_status}"]`);
+                        if(radio) radio.checked = true;
+                        toggleMedsTable(); // מתאים את תצוגת הטבלה
+                    }
+
+                    // טעינת טבלאות דינמיות
+                    document.getElementById('meds_table_body').innerHTML = '';
+                    if (data.meds && data.meds.length > 0) {
+                        data.meds.forEach(m => addTableRow('meds_table_body', 'meds', m));
+                    } else { addTableRow('meds_table_body', 'meds'); }
+
+                    document.getElementById('risks_table_body').innerHTML = '';
+                    if (data.risks && data.risks.length > 0) {
+                        data.risks.forEach(r => addTableRow('risks_table_body', 'risks', r));
+                    } else { addTableRow('risks_table_body', 'risks'); }
+
+                    // טעינת רשימות
+                    const loadList = (ulId, color, arr) => {
+                        document.getElementById(ulId).innerHTML = '';
+                        if (arr && arr.length > 0) {
+                            arr.forEach(val => addListItem(ulId, color, val));
+                        } else { addListItem(ulId, color); }
+                    };
+                    
+                    loadList('triggers_list', 'blue', data.triggers_list);
+                    loadList('behaviors_list', 'blue', data.behaviors_list);
+                    loadList('dos_list', 'green', data.dos_list);
+                    loadList('donts_list', 'red', data.donts_list);
+
+                } catch(e) { console.error("Error parsing saved data", e); }
+            } else {
+                // מצב התחלתי אם אין שום דבר שמור
+                addTableRow('meds_table_body', 'meds');
+                addTableRow('risks_table_body', 'risks');
+                addListItem('triggers_list');
+                addListItem('behaviors_list');
+                addListItem('dos_list', 'green');
+                addListItem('donts_list', 'red');
+            }
+        }
+
+        // ניקוי מלא של הטופס והזיכרון
+        function clearForm() {
+            if (confirm("האם אתה בטוח שברצונך למחוק את כל הנתונים הנוכחיים ולהתחיל דייר חדש?")) {
+                localStorage.removeItem('tenantFormData'); // מוחק מהזיכרון
+                document.getElementById('tenantForm').reset(); // מאפס שדות
+                
+                // מאפס שורות דינמיות למצב ההתחלתי (שורה אחת ריקה)
+                document.getElementById('meds_table_body').innerHTML = ''; addTableRow('meds_table_body', 'meds');
+                document.getElementById('risks_table_body').innerHTML = ''; addTableRow('risks_table_body', 'risks');
+                document.getElementById('triggers_list').innerHTML = ''; addListItem('triggers_list');
+                document.getElementById('behaviors_list').innerHTML = ''; addListItem('behaviors_list');
+                document.getElementById('dos_list').innerHTML = ''; addListItem('dos_list', 'green');
+                document.getElementById('donts_list').innerHTML = ''; addListItem('donts_list', 'red');
+                
+                // מחזיר את תצוגת התרופות למצב ברירת המחדל
+                document.querySelector('input[name="meds_status"][value="assisted"]').checked = true;
+                toggleMedsTable();
+            }
+        }
+
+        // --- פונקציות להוספת שדות דינמיים ---
+
+        function addTableRow(tbodyId, type, loadData = null) {
+            const tbody = document.getElementById(tbodyId);
+            const tr = document.createElement('tr');
+            
+            if (type === 'meds') {
+                tr.innerHTML = `
+                    <td class="border p-1"><input type="text" class="w-full p-1 border rounded outline-none text-sm med-name" placeholder="שם תרופה"></td>
+                    <td class="border p-1"><input type="text" class="w-full p-1 border rounded outline-none text-sm med-dose" placeholder="מינון"></td>
+                    <td class="border p-1 text-center"><input type="checkbox" class="w-4 h-4 med-morn"></td>
+                    <td class="border p-1 text-center"><input type="checkbox" class="w-4 h-4 med-noon"></td>
+                    <td class="border p-1 text-center"><input type="checkbox" class="w-4 h-4 med-eve"></td>
+                    <td class="border p-1 text-center"><button type="button" onclick="this.closest('tr').remove(); saveToLocal();" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></td>
+                `;
+                if (loadData) {
+                    tr.querySelector('.med-name').value = loadData.name;
+                    tr.querySelector('.med-dose').value = loadData.dose;
+                    tr.querySelector('.med-morn').checked = loadData.morn;
+                    tr.querySelector('.med-noon').checked = loadData.noon;
+                    tr.querySelector('.med-eve').checked = loadData.eve;
+                }
+            } else if (type === 'risks') {
+                tr.innerHTML = `
+                    <td class="border p-1"><input type="text" class="w-full p-1 border rounded outline-none text-sm risk-name" placeholder="מהות הסיכון"></td>
+                    <td class="border p-1"><input type="text" class="w-full p-1 border rounded outline-none text-sm risk-warn" placeholder="סימני אזהרה"></td>
+                    <td class="border p-1"><input type="text" class="w-full p-1 border rounded outline-none text-sm risk-act" placeholder="התערבות"></td>
+                    <td class="border p-1 text-center"><button type="button" onclick="this.closest('tr').remove(); saveToLocal();" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button></td>
+                `;
+                if (loadData) {
+                    tr.querySelector('.risk-name').value = loadData.name;
+                    tr.querySelector('.risk-warn').value = loadData.warn;
+                    tr.querySelector('.risk-act').value = loadData.act;
+                }
+            }
+            tbody.appendChild(tr);
+            if(!loadData) saveToLocal(); // שמירה בעת לחיצה על "הוסף" (ולא בעת הטעינה הראשונית)
+        }
+
+        function addListItem(ulId, colorScheme = 'blue', loadValue = null) {
+            const ul = document.getElementById(ulId);
+            const li = document.createElement('li');
+            li.className = "flex items-center gap-2";
+            
+            let focusClass = "focus:ring-blue-500";
+            if(colorScheme === 'green') focusClass = "focus:ring-green-500 border-green-300";
+            if(colorScheme === 'red') focusClass = "focus:ring-red-500 border-red-300";
+
+            li.innerHTML = `
+                <div class="flex-grow"><input type="text" class="w-full border rounded p-1.5 text-sm outline-none focus:ring-2 ${focusClass} list-val" placeholder="הקלד כאן..."></div>
+                <button type="button" onclick="this.closest('li').remove(); saveToLocal();" class="text-gray-400 hover:text-red-500 px-1"><i class="fas fa-times"></i></button>
+            `;
+            if (loadValue !== null) {
+                li.querySelector('.list-val').value = loadValue;
+            }
+            ul.appendChild(li);
+            if (loadValue === null) saveToLocal(); // שמירה בעת לחיצה על "הוסף"
+        }
+
+        function toggleMedsTable() {
+            const medsStatus = document.querySelector('input[name="meds_status"]:checked').value;
+            const container = document.getElementById('meds_table_container');
+            if (medsStatus === 'none') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+            }
+            saveToLocal(); // שמירה בשינוי סטטוס
+        }
+
+        // הגדרת מאזינים והפעלות בעת טעינת הדף
+        document.addEventListener('DOMContentLoaded', () => {
+            // מאזין לכל הקלדה או שינוי בטופס לצורך שמירה אוטומטית
+            const form = document.getElementById('tenantForm');
+            form.addEventListener('input', saveToLocal);
+            form.addEventListener('change', saveToLocal);
+            
+            // טעינת נתונים אם יש
+            loadFromLocal();
+            
+            // הגבלת תאריך עתידי
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('f_dob').max = today;
+        });
+
+        // --- מנגנון הפקת PDF ---
+
+        function generatePDF() {
+            const data = {
+                name: document.getElementById('f_name').value.trim() || 'שם הדייר חסר',
+                id: document.getElementById('f_id').value.trim(),
+                dob: document.getElementById('f_dob').value ? new Date(document.getElementById('f_dob').value).toLocaleDateString('he-IL') : '',
+                tenantPhone: document.getElementById('f_tenant_phone').value.trim(),
+                hmo: document.getElementById('f_hmo').value.trim(),
+                contactName: document.getElementById('f_contact_name').value.trim(),
+                contactPhone: document.getElementById('f_contact_phone').value.trim(),
+                allergies: document.getElementById('f_allergies').value.trim(),
+                
+                medsStatus: document.querySelector('input[name="meds_status"]:checked').value,
+                medsNotes: document.getElementById('f_meds_notes').value.trim(),
+                
+                routine: document.getElementById('f_routine').value.trim(),
+                hygiene: document.getElementById('f_hygiene').value.trim(),
+                mobility: document.getElementById('f_mobility').value.trim(),
+                normalUnusual: document.getElementById('f_normal_unusual').value.trim(),
+                
+                emotionalNeeds: document.getElementById('f_emotional_needs').value.trim(),
+                
+                date: new Date().toLocaleDateString('he-IL')
+            };
+
+            const meds = Array.from(document.querySelectorAll('#meds_table_body tr')).map(tr => ({
+                name: tr.querySelector('.med-name').value.trim(),
+                dose: tr.querySelector('.med-dose').value.trim(),
+                morn: tr.querySelector('.med-morn').checked,
+                noon: tr.querySelector('.med-noon').checked,
+                eve: tr.querySelector('.med-eve').checked
+            })).filter(m => m.name !== '');
+
+            const risks = Array.from(document.querySelectorAll('#risks_table_body tr')).map(tr => ({
+                name: tr.querySelector('.risk-name').value.trim(),
+                warn: tr.querySelector('.risk-warn').value.trim(),
+                act: tr.querySelector('.risk-act').value.trim()
+            })).filter(r => r.name !== '');
+
+            const getListData = (ulId) => Array.from(document.querySelectorAll(`#${ulId} .list-val`)).map(inp => inp.value.trim()).filter(v => v !== '');
+            const triggers = getListData('triggers_list');
+            const behaviors = getListData('behaviors_list');
+            const dos = getListData('dos_list');
+            const donts = getListData('donts_list');
+
+            // --- בניית HTML חכם (שדות ריקים מוסתרים) ---
+            
+            let pdfHTML = `
+                <div class="pdf-header">
+                    <h1 class="pdf-super-title">${data.name}</h1>
+                    <div class="pdf-subtitle">תקציר מידע לצוות מחליף | תאריך הפקה: ${data.date}</div>
+                </div>
+
+                <div class="pdf-section">
+                    <div class="pdf-section-title">1. תעודת זהות ורקע רפואי</div>
+                    <div class="pdf-grid-3">
+                        ${data.id ? `<div><span class="pdf-label">ת"ז:</span> ${data.id}</div>` : ''}
+                        ${data.dob ? `<div><span class="pdf-label">תאריך לידה:</span> ${data.dob}</div>` : ''}
+                        ${data.tenantPhone ? `<div><span class="pdf-label">טלפון דייר:</span> ${data.tenantPhone}</div>` : ''}
+                        ${data.hmo ? `<div><span class="pdf-label">קופ"ח:</span> ${data.hmo}</div>` : ''}
+                        ${data.contactName ? `<div><span class="pdf-label">איש קשר:</span> ${data.contactName}</div>` : ''}
+                        ${data.contactPhone ? `<div><span class="pdf-label">טלפון איש קשר:</span> ${data.contactPhone}</div>` : ''}
+                    </div>
+                    ${data.allergies ? `<div style="color: red; font-weight: bold; margin-top: 5px;">⚠️ רגישויות/אלרגיות: ${data.allergies}</div>` : ''}
+                </div>
+            `;
+
+            // סעיף תרופות מותנה
+            pdfHTML += `<div class="pdf-section"><div class="pdf-section-title">2. שגרת תרופות</div>`;
+            if (data.medsStatus === 'none') {
+                pdfHTML += `<div>הדייר <strong>אינו נוטל תרופות</strong>.</div>`;
+            } else if (data.medsStatus === 'independent') {
+                pdfHTML += `<div>הדייר לוקח תרופות <strong>באופן עצמאי</strong> - באחריות הצוות רק <strong>לוודא</strong> עמו שלקח.</div>`;
+                if (data.medsNotes) pdfHTML += `<div style="margin-top:4px;"><span class="pdf-label">דגשים:</span> ${data.medsNotes}</div>`;
+                if (meds.length > 0) pdfHTML += buildMedsTable(meds);
+            } else {
+                pdfHTML += `<div>חלוקת תרופות <strong>באחריות ובהשגחת הצוות</strong>.</div>`;
+                if (data.medsNotes) pdfHTML += `<div style="margin-top:4px;"><span class="pdf-label">דגשים:</span> ${data.medsNotes}</div>`;
+                if (meds.length > 0) pdfHTML += buildMedsTable(meds);
+            }
+            pdfHTML += `</div>`;
+
+            // סעיף סיכונים
+            if (risks.length > 0) {
+                pdfHTML += `
+                <div class="pdf-section">
+                    <div class="pdf-section-title">3. ניהול סיכונים מעקב נדרש</div>
+                    <table class="pdf-table">
+                        <thead><tr><th>מהות הסיכון</th><th>סימני אזהרה</th><th>התערבות נדרשת מהצוות</th></tr></thead>
+                        <tbody>${risks.map(r => `<tr><td><strong>${r.name}</strong></td><td>${r.warn}</td><td>${r.act}</td></tr>`).join('')}</tbody>
+                    </table>
+                </div>`;
+            }
+
+            // סעיף שגרה (אם לפחות אחד מולא)
+            if (data.routine || data.hygiene || data.mobility || data.normalUnusual) {
+                pdfHTML += `
+                <div class="pdf-section">
+                    <div class="pdf-section-title">4. שגרת יום ותפקוד פיזי</div>
+                    <div class="pdf-text">
+                        ${data.routine ? `<div><span class="pdf-label">דגשים בסדר יום:</span> ${data.routine}</div>` : ''}
+                        ${data.hygiene ? `<div><span class="pdf-label">דגשים בהיגיינה:</span> ${data.hygiene}</div>` : ''}
+                        ${data.mobility ? `<div><span class="pdf-label">התניידות ומרחב:</span> ${data.mobility}</div>` : ''}
+                        ${data.normalUnusual ? `<div style="margin-top: 4px; background-color: #fefce8; padding: 4px; border: 1px solid #fef08a;"><span class="pdf-label">התנהגויות "חריגות" אך שגרתיות עבורו:</span> ${data.normalUnusual}</div>` : ''}
+                    </div>
+                </div>`;
+            }
+
+            // סעיף רגשי (אם לפחות אחד מולא)
+            if (triggers.length > 0 || behaviors.length > 0 || data.emotionalNeeds) {
+                pdfHTML += `
+                <div class="pdf-section">
+                    <div class="pdf-section-title">5. פרופיל רגשי וגישה טיפולית</div>
+                    <div class="pdf-grid-2">
+                        ${triggers.length > 0 ? `<div><span class="pdf-label">נקודות רגישות ומשמחות:</span><ul class="pdf-list">${triggers.map(t => `<li>${t}</li>`).join('')}</ul></div>` : '<div></div>'}
+                        ${behaviors.length > 0 ? `<div><span class="pdf-label">סימנים מקדימים לקושי:</span><ul class="pdf-list">${behaviors.map(b => `<li>${b}</li>`).join('')}</ul></div>` : '<div></div>'}
+                    </div>
+                    ${data.emotionalNeeds ? `<div class="pdf-text" style="margin-top: 5px;"><span class="pdf-label">מה עוזר כשהוא כועס/במצוקה:</span> ${data.emotionalNeeds}</div>` : ''}
+                </div>`;
+            }
+
+            // סעיף עשה ואל תעשה
+            if (dos.length > 0 || donts.length > 0) {
+                pdfHTML += `
+                <div class="pdf-section" style="page-break-inside: auto;">
+                    <div class="pdf-section-title">6. הנחיות זהב לצוות (עשה ואל תעשה)</div>
+                    <div class="dos-donts-grid">
+                        ${dos.length > 0 ? `<div class="do-box"><div class="do-title">✓ עשה:</div><ul class="pdf-list">${dos.map(d => `<li>${d}</li>`).join('')}</ul></div>` : '<div></div>'}
+                        ${donts.length > 0 ? `<div class="dont-box"><div class="dont-title">✗ אל תעשה:</div><ul class="pdf-list">${donts.map(d => `<li>${d}</li>`).join('')}</ul></div>` : '<div></div>'}
+                    </div>
+                </div>`;
+            }
+
+            function buildMedsTable(medsArr) {
+                return `
+                <table class="pdf-table" style="margin-top:5px;">
+                    <thead><tr><th>שם התרופה</th><th>מינון</th><th style="width:40px;text-align:center;">בוקר</th><th style="width:40px;text-align:center;">צהריים</th><th style="width:40px;text-align:center;">ערב</th></tr></thead>
+                    <tbody>${medsArr.map(m => `<tr><td>${m.name}</td><td>${m.dose}</td><td style="text-align:center;">${m.morn ? '✓' : ''}</td><td style="text-align:center;">${m.noon ? '✓' : ''}</td><td style="text-align:center;">${m.eve ? '✓' : ''}</td></tr>`).join('')}</tbody>
+                </table>`;
+            }
+
+            // הזרקת ה-HTML לדיב הנסתר
+            const pdfContainer = document.getElementById('pdf-content');
+            pdfContainer.innerHTML = pdfHTML;
+
+            // הפעלת חלון ההדפסה המובנה של הדפדפן
+            // (הדפדפן יסתיר את הטופס ויציג רק את ה-pdfHTML בזכות ה- @media print שהגדרנו)
+            setTimeout(() => {
+                window.print();
+            }, 100);
+        }
+    </script>
+</body>
+</html>
